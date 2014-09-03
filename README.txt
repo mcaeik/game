@@ -1,0 +1,1 @@
+Attempt to make a simple game in SFML (www.sfml-dev.org).
