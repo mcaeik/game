@@ -1,90 +1,93 @@
-#include <cmath>
-
 class Light {
 	private:
-		sf::RenderTexture rtex, btex, ntex;
-		sf::Vector2f position;
-		double radius;
-		int rays;
 
 	public:
-		void setRadius (double);
-		void setPosition (sf::Vector2f);
-		void setPosition (double, double);
-		void setRays (int);
-		void setResolution (int, int);
+		sf::Vector2f position;
+		sf::Color color;
+		double radius;
+};
+
+class LightEngine {
+	private:
+		sf::RenderTexture btex, ltex, ttex, stex;
+		sf::Sprite lspr, sspr, tspr;
+		sf::Shader shadows, dark, blur;
+		sf::RenderStates rs_add, rs_mul;
+
+	public:
+		sf::Color ambientcolor;
+		sf::Vector2f screen;
+		double resolution;
+
+		void init ();
 		void clear ();
-		void draw (const sf::Drawable&, const sf::RenderStates&);
+		void draw (const sf::Drawable&);
+		void add (Light);
 		void shine (sf::RenderTarget&);
 };
 
-//
-void Light::setRadius (double r) {
-	radius = r;
-	rtex.create (2*radius, 2*radius);
-	btex.create (2*radius, 2*radius);
-}
-void Light::setPosition (sf::Vector2f p) {
-	position = p;
-}
-void Light::setPosition (double x, double y) {
-	position = sf::Vector2f (x, y);
-}
-void Light::setRays (int r) {
-	rays = r;
-}
-void Light::setResolution (int x, int y) {
-	ntex.create (x, y);
-}
-void Light::clear () {
-	rtex.clear (sf::Color(255, 255, 255, 0));
-	sf::View view = rtex.getDefaultView ();
-	view.setCenter (position);
-	rtex.setView (view);
-}
-void Light::draw (const sf::Drawable& drawable, const sf::RenderStates& states = sf::RenderStates::Default) {
-	rtex.draw (drawable, states);
-}
-void Light::shine (sf::RenderTarget& rt) {	
-	sf::Image img;
-	sf::Sprite spr, rspr;
-	sf::ConvexShape sh;
+void LightEngine::init () {
+	btex.create (screen.x, screen.y);
+	ltex.create (resolution, resolution);
+	ttex.create (resolution, resolution);
+	stex.create (screen.x, screen.y);
 
-	sh.setPointCount (rays);
-	sh.setFillColor (sf::Color (255, 255, 255));
+	lspr.setTexture (btex.getTexture ());
+	tspr.setTexture (ltex.getTexture ());
+	sspr.setTexture (ttex.getTexture ());
 
-	spr.setTexture (rtex.getTexture ());
-	spr.setColor (sf::Color (0, 0, 0));
-	btex.clear (sf::Color (255, 255, 255, 0));
-	btex.draw (spr);
-	img = btex.getTexture().copyToImage ();
+	shadows.loadFromFile ("../shaders/light.frag", sf::Shader::Fragment);
+	shadows.setParameter ("texture", sf::Shader::CurrentTexture);
+	shadows.setParameter ("height", resolution);
+	shadows.setParameter ("width", resolution);
 
-	double angel = 2.0*M_PI/rays, x, y;
-	for (double i = 0, j = 0; i < 2*M_PI; i += angel, j ++) {
-		for (int d = 0; d < radius; d ++) {
-			x = (int) d*cos(i)+radius;
-			y = (int) d*sin(i)+radius;
+	dark.loadFromFile ("../shaders/dark.frag", sf::Shader::Fragment);
+	dark.setParameter ("texture", sf::Shader::CurrentTexture);
+	dark.setParameter ("ambient", ambientcolor);
 
-			if (img.getPixel (x, y).r != 255) {
-				sh.setPoint ((int) j, sf::Vector2f (position.x + x - radius, position.y + y - radius));
-				break;
-			}
-			else if (d == radius -1) {
-				sh.setPoint ((int) j, sf::Vector2f (position.x + x - radius, position.y + y - radius));
-			}
-		}
-	}
+	blur.loadFromFile ("../shaders/blur.frag", sf::Shader::Fragment);
+	blur.setParameter ("texture", sf::Shader::CurrentTexture);
+	blur.setParameter ("blur_radius", 0.005);
 
-	ntex.clear (sf::Color(16, 16, 16));
-	ntex.setView (rt.getView ());
-	ntex.draw (sh);
+	rs_add.blendMode = sf::BlendAdd;
+	rs_add.shader = &blur;
 
-	rspr.setTexture (ntex.getTexture ());
-	rspr.setPosition (rt.getView().getCenter ().x, rt.getView().getCenter().y);
-	rspr.setOrigin (rt.getView().getSize().x/2, rt.getView().getSize().y/2);
-	rspr.setScale (1, -1);
+	rs_mul.blendMode = sf::BlendMultiply;
+	rs_mul.shader = &blur;
+}
 
-	sf::RenderStates rs = sf::RenderStates::Default;
-	rs.blendMode = sf::BlendMultiply;
-	rt.draw (rspr, rs);
+void LightEngine::clear () {
+	btex.clear (sf::Color::White);
+	stex.clear (ambientcolor);
+}
+
+void LightEngine::draw (const sf::Drawable& drawable) {
+	btex.draw (drawable, &dark);
+}
+
+void LightEngine::add (Light light) {
+	lspr.setTextureRect (sf::IntRect (light.position.x-light.radius, screen.y-light.position.y-light.radius, light.radius*2, light.radius*2));
+	lspr.setScale (resolution/(light.radius*2), resolution/(light.radius*2));
+
+	ltex.clear (sf::Color::White);
+	ltex.draw (lspr);
+
+	shadows.setParameter ("lightpos", resolution/2, resolution/2);
+	shadows.setParameter ("radius", resolution/2);
+	shadows.setParameter ("light", light.color);
+
+	ttex.clear (sf::Color::White);
+	ttex.draw (tspr, &shadows);
+
+	sspr.setScale ((light.radius*2)/resolution, (light.radius*2)/resolution);
+	sspr.setPosition (light.position.x-light.radius, screen.y-light.position.y-light.radius);
+
+	stex.draw (sspr, rs_add);
+}
+
+void LightEngine::shine (sf::RenderTarget& rt) {
+	sf::Sprite spr;
+	spr.setTexture (stex.getTexture ());
+
+	rt.draw (spr, rs_mul);
 }
