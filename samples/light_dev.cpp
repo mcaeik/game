@@ -5,9 +5,10 @@ using namespace std;
 #include "../include/light.h"
 
 int main () {
-	sf::RenderWindow window (sf::VideoMode (1000, 700, 16), "sfml");
+	sf::RenderWindow window (sf::VideoMode (800, 600, 16), "sfml");
 	sf::Event event;
 
+	vector <sf::RectangleShape> rs;
 	sf::RectangleShape t;
 	t.setSize (sf::Vector2f (50, 50));
 	t.setFillColor (sf::Color::Red);
@@ -16,17 +17,16 @@ int main () {
 	double time, atime = 0;
 
 	LightEngine le;
-	le.ambientcolor = sf::Color (16, 16, 16);
-	le.screen = sf::Vector2f (1000, 700);
-	le.resolution = 128;
+	le.ambientcolor = sf::Color (0, 0, 0);
+	le.screen = sf::Vector2f (800, 600);
+	le.resolution = 256;
 	le.init ();
 
 	vector <Light> light;
 	Light l;
 	l.color = sf::Color::White;
-	l.radius = 250;
-
-	vector <sf::RectangleShape> rs;
+	l.radius = 300;
+	l.position = sf::Vector2f (400, 300);
 
 	while (window.isOpen ()) {
 		//fps
@@ -47,17 +47,18 @@ int main () {
 				rs.push_back (t);
 			}
 		}
+
 		l.position = sf::Vector2f (sf::Mouse::getPosition (window).x, sf::Mouse::getPosition (window).y);
 
-
 		window.clear (sf::Color::White);
-		le.clear ();
+		for (int i = 0; i < rs.size (); i ++) window.draw (rs [i]);
 
+		le.clear ();
 		for (int i = 0; i < rs.size (); i ++) le.draw (rs [i]);
 		for (int i = 0; i < light.size (); i ++) le.add (light [i]);
-
-		for (int i = 0; i < rs.size (); i ++) window.draw (rs [i]);
+		le.add (l);
 		le.shine (window);
+
 		window.display ();
 	}
 
