@@ -9,8 +9,8 @@ class Light {
 
 class LightEngine {
 	private:
-		sf::RenderTexture texblack, texlight, texshadow, texfinal;
-		sf::Sprite lspr, sspr, tspr;
+		sf::RenderTexture texblack, texlight, texshadow, texfinal, textemp;
+		sf::Sprite lspr, sspr, tspr, fspr;
 		sf::Shader shadows, dark, render, blur;
 		sf::RenderStates rs_add, rs_mul;
 
@@ -28,13 +28,17 @@ class LightEngine {
 
 void LightEngine::init () {
 	texblack.create (screen.x, screen.y);
+	textemp.create (screen.x, screen.y);
 	texlight.create (resolution, resolution);
 	texshadow.create (resolution, 1);
 	texfinal.create (screen.x, screen.y);
+	texfinal.setSmooth (true);
+
 
 	lspr.setTexture (texblack.getTexture ());
 	sspr.setTexture (texlight.getTexture ());
-	tspr.setTexture (texlight.getTexture ());
+	tspr.setTexture (textemp.getTexture ());
+	fspr.setTexture (textemp.getTexture ());
 
 	shadows.loadFromFile ("../shaders/shadow_map.frag", sf::Shader::Fragment);
 //	shadows.setParameter ("texture", sf::Shader::CurrentTexture);
@@ -45,9 +49,8 @@ void LightEngine::init () {
 	dark.setParameter ("ambient", ambientcolor);
 
 	render.loadFromFile ("../shaders/shadow_render.frag", sf::Shader::Fragment);
-	render.setParameter ("texture", sf::Shader::CurrentTexture);
-	render.setParameter ("resolution", resolution);
 	render.setParameter ("stexture", texshadow.getTexture ());
+	render.setParameter ("screen", screen);
 
 	rs_add.blendMode = sf::BlendAdd;
 	rs_mul.blendMode = sf::BlendMultiply;
@@ -69,15 +72,13 @@ void LightEngine::add (Light light) {
 	texlight.clear (sf::Color::White);
 	texlight.draw (lspr);
 
-	texshadow.clear (sf::Color::Red);
 	texshadow.draw (sspr, &shadows);
 
-	texlight.clear (sf::Color::White);
 	render.setParameter ("color", light.color);
-	texlight.draw (sspr, &render);
+	render.setParameter ("lightpos", light.position);
+	render.setParameter ("radius", light.radius);
+	textemp.draw (fspr, &render);
 
-	tspr.setScale ((light.radius*2)/resolution, (light.radius*2)/resolution);
-	tspr.setPosition (light.position.x - light.radius, screen.y-light.position.y - light.radius);
 	texfinal.draw (tspr, rs_add);
 }
 

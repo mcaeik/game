@@ -17,7 +17,7 @@ int main () {
 	double time, atime = 0;
 
 	LightEngine le;
-	le.ambientcolor = sf::Color (0, 0, 0);
+	le.ambientcolor = sf::Color (16, 16, 16);
 	le.screen = sf::Vector2f (800, 600);
 	le.resolution = 256;
 	le.init ();
@@ -25,7 +25,7 @@ int main () {
 	vector <Light> light;
 	Light l;
 	l.color = sf::Color::White;
-	l.radius = 300;
+	l.radius = 200;
 	l.position = sf::Vector2f (400, 300);
 
 	while (window.isOpen ()) {
